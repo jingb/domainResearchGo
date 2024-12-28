@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Domain Analyzer</title>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #preview {
+            max-width: 100%;
+            margin-top: 20px;
+            display: none;
+        }
+        #dropZone {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            display: none;
+        }
+        .error-message {
+            color: #dc3545;
+            padding: 10px;
+            border: 1px solid #dc3545;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Domain Analyzer</h1>
+        <div id="dropZone">
+            点击这里或者直接粘贴图片(Ctrl+V)
+        </div>
+        <img id="preview" alt="Preview">
+        <div id="response"></div>
+    </div>
+
+    <script>
+        document.addEventListener('paste', function(event) {
+            const items = event.clipboardData.items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const file = item.getAsFile();
+                    handleImage(file);
+                }
+            }
+        });
+
+        document.getElementById('dropZone').addEventListener('click', function() {
+            // 提示用户可以粘贴图片
+            alert('请使用Ctrl+V粘贴图片');
+        });
+
+        function handleImage(file) {
+            // 显示预览
+            const preview = document.getElementById('preview');
+            preview.style.display = 'block';
+            preview.src = URL.createObjectURL(file);
+
+            // 上传图片
+            const formData = new FormData();
+            formData.append('image', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const responseDiv = document.getElementById('response');
+                responseDiv.style.display = 'block';
+                
+                if (data.msg) {
+                    // 显示错误信息
+                    responseDiv.innerHTML = `
+                        <h3>处理失败</h3>
+                        <div class="error-message">${data.msg}</div>
+                    `;
+                    return;
+                }
+                
+                responseDiv.innerHTML = `
+                    <h3>上传结果：</h3>
+                    <div>
+                        <h4>识别到的域名：</h4>
+                        <ul>
+                            ${data.data.domains.map(domain => `
+                                <li>
+                                    <div>域名: ${domain.domain}</div>
+                                    <div>首次收录时间: ${new Date(domain.web_archive_response.create_time).toLocaleString()}</div>
+                                    <div>原始URL: ${domain.web_archive_response.original}</div>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('上传失败');
+            });
+        }
+    </script>
+</body>
+</html> 
